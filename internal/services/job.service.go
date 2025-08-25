@@ -16,13 +16,14 @@ import (
 
 // JobService handles business logic for jobs
 type JobService struct {
-	dbService *DBService
-	natsConn  *nats.Conn
-	ctx       context.Context
+	dbService      *DBService
+	natsConn       *nats.Conn
+	ctx            context.Context
+	webhookService *WebhookService
 }
 
 // NewJobService creates a new instance of JobService
-func NewJobService(dbService *DBService, natsURL string) (*JobService, error) {
+func NewJobService(dbService *DBService, natsURL string, webhookService *WebhookService) (*JobService, error) {
 	// Connect to NATS
 	nc, err := nats.Connect(natsURL, nats.MaxReconnects(-1), nats.ReconnectWait(2*time.Second))
 	if err != nil {
@@ -32,9 +33,10 @@ func NewJobService(dbService *DBService, natsURL string) (*JobService, error) {
 	ctx := context.Background()
 
 	service := &JobService{
-		dbService: dbService,
-		natsConn:  nc,
-		ctx:       ctx,
+		dbService:      dbService,
+		natsConn:       nc,
+		ctx:            ctx,
+		webhookService: webhookService,
 	}
 
 	// Start listening for job status updates
@@ -237,6 +239,26 @@ func (s *JobService) updateJobStatus(statusUpdate models.JobStatusUpdate) error 
 		"status": statusUpdate.Status,
 	}).Info("Job status updated")
 
+	// Send webhook event if job is completed or failed and webhook service is available
+	if s.webhookService != nil && (status == models.JobStatusCompleted || status == models.JobStatusFailed) {
+		jobResponse, err := s.toWebhookJobResponse(job)
+		if err != nil {
+			log.WithError(err).Error("Failed to convert job to response for webhook")
+		} else {
+			var eventType models.WebhookEventType
+			if status == models.JobStatusCompleted {
+				eventType = models.WebhookEventJobCompleted
+			} else {
+				eventType = models.WebhookEventJobFailed
+			}
+
+			err = s.webhookService.SendWebhookEvent(jobResponse, job.ClerkUserID, eventType)
+			if err != nil {
+				log.WithError(err).WithField("job_id", statusUpdate.ID).Error("Failed to send webhook event")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -260,6 +282,25 @@ func (s *JobService) toJobResponse(job models.Job) (*models.JobResponse, error) 
 	}
 
 	return jobResponse, nil
+}
+
+func (s *JobService) toWebhookJobResponse(job models.Job) (*models.JobWebhookResponse, error) {
+	jobWebhookResponse := &models.JobWebhookResponse{
+		JobID:        job.JobID,
+		Language:     job.Language,
+		Code:         job.Code,
+		Status:       job.Status,
+		Message:      job.Message,
+		Error:        job.Error,
+		StdErr:       job.StdErr,
+		StdOut:       job.StdOut,
+		ExecDuration: job.ExecDuration,
+		MemUsage:     job.MemUsage,
+		CreatedAt:    job.CreatedAt,
+		UpdatedAt:    job.UpdatedAt,
+	}
+
+	return jobWebhookResponse, nil
 }
 
 // Close closes the NATS connection
