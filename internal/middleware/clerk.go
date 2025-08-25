@@ -47,6 +47,7 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 
 			// Store user ID in Gin context for use in handlers
 			c.Set(UserIDKey, claims.Subject)
+			c.Set("auth_type", "clerk")
 
 			// Update the request context in Gin context
 			c.Request = r.WithContext(r.Context())
@@ -91,6 +92,7 @@ func RequireClerkAuth() gin.HandlerFunc {
 
 			// Store user ID in Gin context for use in handlers
 			c.Set(UserIDKey, claims.Subject)
+			c.Set("auth_type", "clerk")
 
 			// Update the request context in Gin context
 			c.Request = r.WithContext(r.Context())
