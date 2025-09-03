@@ -64,6 +64,21 @@ type JobResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type JobWebhookResponse struct {
+	JobID        string    `json:"job_id"`
+	Language     string    `json:"language"`
+	Code         string    `json:"code"`
+	Status       JobStatus `json:"status"`
+	Message      string    `json:"message,omitempty"`
+	Error        string    `json:"error,omitempty"`
+	StdErr       string    `json:"stderr,omitempty"`
+	StdOut       string    `json:"stdout,omitempty"`
+	ExecDuration int       `json:"exec_duration,omitempty"`
+	MemUsage     int64     `json:"mem_usage,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 // BenchJob represents the job structure expected by the worker
 type BenchJob struct {
 	ID       string `json:"id"`
