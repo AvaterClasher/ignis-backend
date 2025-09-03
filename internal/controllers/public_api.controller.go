@@ -225,8 +225,7 @@ func (c *PublicAPIController) GetAPIStatus(ctx *gin.Context) {
 			"jobs":    "GET /public/jobs",
 		},
 		"supported_languages": []string{
-			"python", "javascript", "go", "rust", "java", "cpp", "c",
-			// Add more as your system supports them
+			"python", "go", 
 		},
 	}
 
